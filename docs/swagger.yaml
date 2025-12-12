@@ -1,0 +1,123 @@
+basePath: /
+definitions:
+  dto.ErrorResponse:
+    properties:
+      error:
+        example: Invalid input
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  dto.PlagiarismInfo:
+    properties:
+      is_plagiarized:
+        example: true
+        type: boolean
+      score:
+        example: 0.95
+        type: number
+      status:
+        example: checked
+        type: string
+    type: object
+  dto.SubmitWorkResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.WorkResponseData'
+      success:
+        example: true
+        type: boolean
+      timestamp:
+        example: "2025-12-12T19:00:00Z"
+        type: string
+    type: object
+  dto.WordCloudResponse:
+    properties:
+      word_cloud_url:
+        example: https://quickchart.io/...
+        type: string
+      work_id:
+        example: 550e...
+        type: string
+    type: object
+  dto.WorkResponseData:
+    properties:
+      plagiarism_check:
+        $ref: '#/definitions/dto.PlagiarismInfo'
+      submitted_at:
+        type: string
+      work_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+host: localhost:9090
+info:
+  contact: {}
+  description: API Gateway for the Distributed Plagiarism Detection System
+  title: HSE KPO Antiplague Gateway API
+  version: "1.0"
+paths:
+  /api/v1/works:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a work file, save it to storage, and trigger analysis
+      parameters:
+      - description: Assignment ID
+        in: formData
+        name: assignment_id
+        required: true
+        type: string
+      - description: Student ID
+        in: formData
+        name: student_id
+        required: true
+        type: string
+      - description: Work file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Успешная проверка
+          schema:
+            $ref: '#/definitions/dto.SubmitWorkResponse'
+        "400":
+          description: Ошибка валидации
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Сервис недоступен
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Submit work for plagiarism check
+      tags:
+      - works
+  /api/v1/works/{work_id}/wordcloud:
+    get:
+      description: Get a URL to the word cloud image generated from the work text
+      parameters:
+      - description: Work ID
+        in: path
+        name: work_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.WordCloudResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Generate Word Cloud
+      tags:
+      - works
+swagger: "2.0"
