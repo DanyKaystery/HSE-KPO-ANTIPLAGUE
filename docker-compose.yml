@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: antiplague-postgres
+    environment:
+      POSTGRES_USER: antiplague_user
+      POSTGRES_PASSWORD: antiplague_password
+      POSTGRES_DB: antiplague_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U antiplague_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - antiplague-network
+
+  # Gateway
+  gateway:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.api
+      args:
+        SERVICE_NAME: gateway
+    container_name: antiplague-gateway
+    ports:
+      - "9090:9090"
+    environment:
+      - SERVER_PORT=9090
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=antiplague_user
+      - DB_PASSWORD=antiplague_password
+      - DB_NAME=antiplague_db
+      - ENVIRONMENT=docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage:
+        condition: service_started
+      analysis:
+        condition: service_started
+    networks:
+      - antiplague-network
+
+  # Storage
+  storage:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.api
+      args:
+        SERVICE_NAME: storage
+    container_name: antiplague-storage
+    ports:
+      - "9091:9091"
+    environment:
+      - SERVER_PORT=9091
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=antiplague_user
+      - DB_PASSWORD=antiplague_password
+      - DB_NAME=antiplague_db
+      - ENVIRONMENT=docker
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - antiplague-network
+
+  # Analysis
+  analysis:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile.api
+      args:
+        SERVICE_NAME: analysis
+    container_name: antiplague-analysis
+    ports:
+      - "9092:9092"
+    environment:
+      - SERVER_PORT=9092
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=antiplague_user
+      - DB_PASSWORD=antiplague_password
+      - DB_NAME=antiplague_db
+      - ENVIRONMENT=docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - antiplague-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  antiplague-network:
+    driver: bridge
